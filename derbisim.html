@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DerbiSim – Monte Karlo derbi analitikası</title>
+  <style>
+    :root {
+      --bg: #f2f2f7;
+      --card: #fff;
+      --fg: #000;
+      --mut: #636366;
+      --sep: #d1d1d6;
+      --acc: #0a60d0;
+      --act: #0a60d0;
+      --w: #1f8f43;
+      --dd: #8a6200;
+      --l: #c4302b;
+      --fill: #e5e5ea;
+      --sh: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+      --ease: cubic-bezier(.32, .72, 0, 1);
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      color-scheme: light;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #000;
+        --card: #1c1c1e;
+        --fg: #fff;
+        --mut: #a1a1a6;
+        --sep: #38383a;
+        --acc: #1f6fe0;
+        --act: #6cb0ff;
+        --fill: #2c2c2e;
+        --sh: none;
+        color-scheme: dark;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #000;
+      --card: #1c1c1e;
+      --fg: #fff;
+      --mut: #a1a1a6;
+      --sep: #38383a;
+      --acc: #1f6fe0;
+      --act: #6cb0ff;
+      --fill: #2c2c2e;
+      --sh: none;
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html {
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 1.0625rem/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0 0 auto;
+      height: env(safe-area-inset-top, 0px);
+      z-index: 10;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+    }
+
+    header {
+      position: sticky;
+      top: env(safe-area-inset-top, 0px);
+      z-index: 5;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      padding: 12px 20px 12px;
+    }
+
+    .w {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2.125rem;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+      margin: 4px 0 12px;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      letter-spacing: -.01em;
+      margin: 8px 0 4px;
+    }
+
+    h3 {
+      font-size: 1.0625rem;
+      margin: 0;
+    }
+
+    .mut {
+      color: var(--mut);
+    }
+
+    .sm {
+      font-size: .8125rem;
+      margin: 2px 0;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--fill);
+      border-radius: 12px;
+      padding: 3px;
+    }
+
+    .tabs button {
+      border: 0;
+      background: none;
+      color: var(--fg);
+      font: inherit;
+      font-weight: 500;
+      min-height: 44px;
+      border-radius: 10px;
+      transition: background .3s var(--ease), box-shadow .3s var(--ease);
+    }
+
+    .tabs [aria-selected=true] {
+      background: var(--card);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+      font-weight: 600;
+    }
+
+    main {
+      padding: 8px 20px 40px;
+    }
+
+    .pn {
+      animation: fade .45s var(--ease);
+    }
+
+    @keyframes fade {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+    }
+
+    .grp, .card {
+      background: var(--card);
+      border-radius: 18px;
+      box-shadow: var(--sh);
+      margin: 16px 0;
+      overflow: hidden;
+    }
+
+    .card {
+      padding: 18px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      min-height: 64px;
+      padding: 12px 18px;
+      border: 0;
+      border-top: 1px solid var(--sep);
+      background: none;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background .2s;
+    }
+
+    .grp > .row:first-child {
+      border-top: 0;
+    }
+
+    button.row:active {
+      background: var(--fill);
+    }
+
+    .row small {
+      display: block;
+      color: var(--mut);
+      font-size: .8125rem;
+    }
+
+    .row b {
+      font-weight: 600;
+    }
+
+    .chev {
+      color: var(--mut);
+      font-size: 1.6rem;
+    }
+
+    .btn {
+      width: 100%;
+      min-height: 52px;
+      border: 0;
+      border-radius: 14px;
+      background: var(--acc);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .25s var(--ease), opacity .2s;
+    }
+
+    .btn:active {
+      transform: scale(.97);
+    }
+
+    .btn:disabled {
+      opacity: .55;
+      cursor: progress;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--act);
+      outline-offset: 2px;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .two .card {
+      margin: 12px 0;
+    }
+
+    @media(max-width: 520px) {
+      .two {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin: 10px 0 14px;
+    }
+
+    .pills i {
+      font-style: normal;
+      font-size: .6875rem;
+      font-weight: 700;
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      color: #fff;
+    }
+
+    .W { background: var(--w); }
+    .D { background: var(--dd); }
+    .L { background: var(--l); }
+
+    .g {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      text-align: center;
+    }
+
+    .g b {
+      display: block;
+      font-size: 1.5rem;
+      letter-spacing: -.02em;
+    }
+
+    .g span {
+      font-size: .75rem;
+      color: var(--mut);
+    }
+
+    .trk {
+      height: 8px;
+      background: var(--fill);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 14px 0 8px;
+    }
+
+    .trk i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--acc);
+      border-radius: 4px;
+    }
+
+    .cnt {
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .big3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      text-align: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .big3 b {
+      display: block;
+      font-size: 2.25rem;
+      line-height: 1.1;
+      letter-spacing: -.03em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .big3 span {
+      font-size: .8125rem;
+      color: var(--mut);
+      overflow-wrap: anywhere;
+    }
+
+    .tr {
+      display: flex;
+      gap: 3px;
+      height: 10px;
+      margin: 14px 0 2px;
+    }
+
+    .tr i {
+      display: block;
+      border-radius: 5px;
+      width: 0;
+      transition: width .9s var(--ease);
+    }
+
+    .sc {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 18px;
+      border-top: 1px solid var(--sep);
+    }
+
+    .sc em {
+      font-style: normal;
+      font-weight: 600;
+      width: 44px;
+    }
+
+    .sc div {
+      flex: 1;
+      height: 8px;
+      background: var(--fill);
+      border-radius: 4px;
+    }
+
+    .sc i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--acc);
+      border-radius: 4px;
+      transition: width .9s var(--ease);
+    }
+
+    .sc span {
+      width: 52px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .nm {
+      width: 100%;
+      font: inherit;
+      font-weight: 600;
+      border: 0;
+      border-bottom: 1px solid var(--sep);
+      background: none;
+      color: var(--fg);
+      padding: 8px 0;
+      margin-bottom: 8px;
+      min-height: 44px;
+    }
+
+    .sld {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      font-size: .9375rem;
+    }
+
+    .sld output {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type=range] {
+      width: 100%;
+      height: 44px;
+      accent-color: var(--acc);
+      margin: 0;
+    }
+
+    .sw {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 52px;
+      height: 32px;
+      border-radius: 16px;
+      background: var(--fill);
+      position: relative;
+      transition: background .3s;
+      flex: none;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .sw::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,.3);
+      transition: transform .3s var(--ease);
+    }
+
+    .sw:checked {
+      background: var(--acc);
+    }
+
+    .sw:checked::after {
+      transform: translateX(20px);
+    }
+
+    #ov {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      opacity: 0;
+      transition: opacity .35s;
+      z-index: 19;
+    }
+
+    #ov.in {
+      opacity: 1;
+    }
+
+    #sh {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-width: 680px;
+      margin: 0 auto;
+      max-height: 92dvh;
+      overflow: auto;
+      background: var(--bg);
+      border-radius: 26px 26px 0 0;
+      transform: translateY(100%);
+      transition: transform .5s var(--ease);
+      z-index: 20;
+      padding: 0 20px calc(28px + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -12px 40px rgba(0,0,0,.3);
+      overscroll-behavior: contain;
+    }
+
+    #sh.in {
+      transform: none;
+    }
+
+    #gr {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 48px;
+      touch-action: none;
+      cursor: grab;
+      z-index: 2;
+    }
+
+    #gr::before {
+      content: "";
+      width: 40px;
+      height: 5px;
+      border-radius: 3px;
+      background: var(--sep);
+    }
+
+    #cl {
+      position: absolute;
+      right: 0;
+      top: 2px;
+      width: 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--fill);
+      color: var(--mut);
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    .sr {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .priv {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: .875rem;
+      color: var(--mut);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="w">
+        <h1>DerbiSim</h1>
+        <div class="tabs" role="tablist" aria-label="Bölmələr">
+          <button role="tab" id="t-cal" aria-selected="true" aria-controls="cal">Derbilər</button>
+          <button role="tab" id="t-cus" aria-selected="false" aria-controls="cus">Xüsusi simulyator</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="w">
+        <section id="cal" class="pn" role="tabpanel" aria-labelledby="t-cal">
+          <h2>Yaxın derbilər</h2>
+          <p class="mut sm">Matça toxunun, analitikanı açın və 1 000 dəfə simulyasiya edin.</p>
+          <div class="grp" id="list"></div>
+        </section>
+
+        <section id="cus" role="tabpanel" aria-labelledby="t-cus" hidden></section>
+
+        <div class="card priv">
+          <span aria-hidden="true">🔒</span>
+          <p style="margin:0">
+            <b style="color:var(--fg)">Məxfilik.</b> Bütün hesablamalar yalnız cihazınızda aparılır. Hesab, izləmə, kuki yoxdur; daxil etdiyiniz adlar və dəyərlər saxlanmır və heç yerə göndərilmir. Komanda göstəriciləri təxmini model dəyərləridir, mərc tövsiyəsi deyil.
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="ov" hidden></div>
+  <div id="sh" role="dialog" aria-modal="true" aria-labelledby="st" hidden>
+    <div id="gr"><button id="cl" aria-label="Bağla">✕</button></div>
+    <div id="sb"></div>
+  </div>
+
+  <script>
+    const N = 1000;
+    const $ = s => document.querySelector(s);
+    const rm = matchMedia("(prefers-reduced-motion:reduce)").matches;
+    const hap = n => {
+      try { navigator.vibrate && navigator.vibrate(n); } catch (e) {}
+    };
+
+    // [ad, qələbə, bərabərlik, məğlubiyyət (son 20), orta vurulan, orta buraxılan]
+    const TEAMS = {
+      rm: ["Real Madrid", 13, 4, 3, 2.1, .9],
+      ba: ["Barcelona", 14, 3, 3, 2.5, 1.1],
+      at: ["Atlético Madrid", 12, 5, 3, 1.7, .9],
+      mc: ["Manchester City", 13, 4, 3, 2.2, 1],
+      mu: ["Manchester United", 8, 5, 7, 1.5, 1.4],
+      li: ["Liverpool", 13, 4, 3, 2, 1],
+      ev: ["Everton", 7, 7, 6, 1.2, 1.2],
+      ar: ["Arsenal", 14, 4, 2, 1.9, .7],
+      th: ["Tottenham", 9, 4, 7, 1.7, 1.4],
+      bm: ["Bayern München", 16, 2, 2, 3, 1],
+      bd: ["Borussia Dortmund", 11, 4, 5, 2, 1.3],
+      in: ["Inter", 13, 4, 3, 2.1, .9],
+      mi: ["Milan", 10, 6, 4, 1.6, 1],
+      ro: ["Roma", 10, 5, 5, 1.5, 1],
+      la: ["Lazio", 8, 6, 6, 1.4, 1.2],
+      ju: ["Juventus", 10, 7, 3, 1.6, .9]
+    };
+
+    const FIX = [
+      ["El Clásico", "La Liga", "ba", "rm"],
+      ["Madrid derbisi", "La Liga", "rm", "at"],
+      ["Mançester derbisi", "Premier League", "mc", "mu"],
+      ["Merseyside derbisi", "Premier League", "ev", "li", "28 noyabr 2026"],
+      ["Şimali London derbisi", "Premier League", "ar", "th"],
+      ["Der Klassiker", "Bundesliga", "bd", "bm"],
+      ["Derby della Madonnina", "Serie A", "in", "mi"],
+      ["Derby della Capitale", "Serie A", "ro", "la"],
+      ["Derby d’Italia", "Serie A", "in", "ju"]
+    ];
+
+    const pois = l => {
+      const L = Math.exp(-l);
+      let k = 0, p = 1;
+      do { k++; p *= Math.random(); } while (p > L);
+      return k - 1;
+    };
+
+    const lam = (gf, ga, home, adv) => Math.min(6, Math.max(.1, (gf + ga) / 2 * (adv ? (home ? 1.1 : .92) : 1)));
+
+    function form(t) {
+      const a = [..."W".repeat(t[1]), ..."D".repeat(t[2]), ..."L".repeat(t[3])];
+      let s = t[4] * 97 + t[5] * 31 + t[1];
+      for (let i = a.length - 1; i > 0; i--) {
+        s = (s * 9301 + 49297) % 233280;
+        const j = s % (i + 1);
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    const card = t => `
+      <div class="card">
+        <h3>${t[0]}</h3>
+        <p class="mut sm">Son 20 oyun · təxmini</p>
+        <div class="pills" role="img" aria-label="Forma: ${t[1]} qələbə, ${t[2]} bərabərlik, ${t[3]} məğlubiyyət">
+          ${form(t).map(x => `<i class="${x}" aria-hidden="true">${x}</i>`).join("")}
+        </div>
+        <div class="g">
+          <div><b>${t[1] * 5}%</b><span>Qələbə</span></div>
+          <div><b>${t[4].toFixed(1)}</b><span>Vurulan</span></div>
+          <div><b>${t[5].toFixed(1)}</b><span>Buraxılan</span></div>
+        </div>
+      </div>`;
+
+    // Simulyasiya paneli: get() → [evAdı, qonaqAdı, λev, λqonaq]
+    function panel(el, get) {
+      el.innerHTML = `
+        <button class="btn go">▶ 1 000 dəfə simulyasiya et</button>
+        <div class="pr" hidden>
+          <div class="trk" role="progressbar" aria-label="Simulyasiya" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="0"><i></i></div>
+          <div class="cnt">0 <span class="mut" style="font-weight:400">/ 1 000</span></div>
+          <p class="mut sm live"></p>
+        </div>
+        <p class="sr" aria-live="polite"></p>
+        <div class="out"></div>`;
+
+      const go = el.querySelector(".go");
+      const pr = el.querySelector(".pr");
+      const trk = pr.querySelector(".trk");
+      const bar = trk.firstChild;
+      const cnt = pr.querySelector(".cnt");
+      const live = pr.querySelector(".live");
+      const sr = el.querySelector(".sr");
+      const out = el.querySelector(".out");
+
+      go.onclick = () => {
+        const [hn, an, lh, la] = get();
+        go.disabled = true;
+        go.textContent = "Simulyasiya gedir…";
+        pr.hidden = false;
+        out.innerHTML = "";
+        sr.textContent = "Simulyasiya başladı.";
+        hap(12);
+
+        let i = 0;
+        const S = { h: 0, d: 0, a: 0, gh: 0, ga: 0, bt: 0, o: 0, sc: {} };
+
+        (function step() {
+          for (let j = 0; j < (rm ? N : 12) && i < N; j++, i++) {
+            const x = pois(lh), y = pois(la);
+            S.gh += x;
+            S.ga += y;
+            x > y ? S.h++ : x < y ? S.a++ : S.d++;
+            if (x && y) S.bt++;
+            if (x + y > 2) S.o++;
+            const k = x + "-" + y;
+            S.sc[k] = (S.sc[k] || 0) + 1;
+          }
+          bar.style.width = i / N * 100 + "%";
+          trk.setAttribute("aria-valuenow", i);
+          cnt.firstChild.textContent = i + " ";
+          live.textContent = `${hn} ${(S.h / i * 100).toFixed(0)}% · Bərabərlik ${(S.d / i * 100).toFixed(0)}% · ${an} ${(S.a / i * 100).toFixed(0)}%`;
+          i < N ? requestAnimationFrame(step) : done();
+        })();
+
+        function done() {
+          go.disabled = false;
+          go.textContent = "↻ Yenidən simulyasiya et";
+          hap([20, 40, 20]);
+
+          const p = v => v / N * 100;
+          const H = p(S.h), D = p(S.d), A = p(S.a), xh = S.gh / N, xa = S.ga / N, bt = p(S.bt), o = p(S.o);
+          const top = Object.entries(S.sc).sort((a, b) => b[1] - a[1]).slice(0, 5);
+          const mx = top[0][1];
+
+          let c;
+          if (Math.abs(H - A) < 6) {
+            c = `${hn} və ${an} arasında güclər demək olar ki, bərabərdir; bərabərlik ehtimalı ${D.toFixed(0)}%-dir.`;
+          } else {
+            const hf = H > A;
+            c = `Alqoritm ${hf ? hn : an} komandasını favorit görür (${Math.max(H, A).toFixed(0)}%), amma derbilərdə sürprizlər tez-tez olur: ${hf ? an : hn} üçün qələbə şansı ${Math.min(H, A).toFixed(0)}%.`;
+          }
+          c += ` Gözlənilən ümumi qol ${(xh + xa).toFixed(2)} olduğundan matç ${xh + xa > 2.8 ? "açıq və qollu" : xh + xa < 2.2 ? "ehtiyatlı və az qollu" : "orta templi"} keçə bilər. Hər iki komandanın qol vurma ehtimalı ${bt.toFixed(0)}%-dir.`;
+
+          const r = (l, v) => `<div class="row"><span>${l}</span><b>${v}</b></div>`;
+
+          out.innerHTML = `
+            <div class="card">
+              <h3>Nəticə (1X2)</h3>
+              <div class="big3">
+                <div><b>${H.toFixed(1)}%</b><span>${hn}</span></div>
+                <div><b>${D.toFixed(1)}%</b><span>Bərabərlik</span></div>
+                <div><b>${A.toFixed(1)}%</b><span>${an}</span></div>
+              </div>
+              <div class="tr" aria-hidden="true">
+                <i data-w="${H}" style="background:var(--acc)"></i>
+                <i data-w="${D}" style="background:#8e8e93"></i>
+                <i data-w="${A}" style="background:#d97706"></i>
+              </div>
+            </div>
+            <div class="card">
+              <h3>AI alqoritminin rəyi</h3>
+              <p style="margin:8px 0 0">${c}</p>
+            </div>
+            <div class="grp">
+              ${r("Gözlənilən qol (xG) · " + hn, xh.toFixed(2))}
+              ${r("Gözlənilən qol (xG) · " + an, xa.toFixed(2))}
+              ${r("Qarşılıqlı qol (BTTS)", bt.toFixed(1) + "%")}
+              ${r("2.5 Üst", o.toFixed(1) + "%")}
+            </div>
+            <h3 style="margin:20px 0 -4px">Ən çox təkrarlanan 5 hesab</h3>
+            <div class="grp">
+              ${top.map(([k, v]) => `
+                <div class="sc">
+                  <em>${k}</em>
+                  <div><i data-w="${v / mx * 100}"></i></div>
+                  <span>${p(v).toFixed(1)}%</span>
+                </div>`).join("")}
+            </div>`;
+
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            out.querySelectorAll("[data-w]").forEach(e => e.style.width = e.dataset.w + "%");
+          }));
+
+          sr.textContent = `Simulyasiya tamamlandı. ${hn} ${H.toFixed(0)} faiz, bərabərlik ${D.toFixed(0)} faiz, ${an} ${A.toFixed(0)} faiz.`;
+        }
+      };
+    }
+
+    // Bottom sheet
+    const sh = $("#sh"), ov = $("#ov"), app = $("#app"), gr = $("#gr");
+    let opener, y0 = null;
+
+    function openSheet(html, el) {
+      opener = el;
+      $("#sb").innerHTML = html;
+      ov.hidden = sh.hidden = false;
+      app.inert = true;
+      sh.scrollTop = 0;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        ov.classList.add("in");
+        sh.classList.add("in");
+        $("#cl").focus();
+      }));
+      hap(8);
+    }
+
+    function closeSheet() {
+      if (sh.hidden) return;
+      ov.classList.remove("in");
+      sh.classList.remove("in");
+      sh.style.transform = "";
+      app.inert = false;
+      opener && opener.focus();
+      setTimeout(() => { ov.hidden = sh.hidden = true; }, rm ? 0 : 450);
+    }
+
+    $("#cl").onclick = closeSheet;
+    ov.onclick = closeSheet;
+    addEventListener("keydown", e => e.key === "Escape" && closeSheet());
+
+    gr.onpointerdown = e => {
+      if (e.target.closest("#cl")) return;
+      y0 = e.clientY;
+      sh.style.transition = "none";
+      gr.setPointerCapture(e.pointerId);
+    };
+
+    gr.onpointermove = e => {
+      if (y0 != null) sh.style.transform = `translateY(${Math.max(0, e.clientY - y0)}px)`;
+    };
+
+    gr.onpointerup = gr.onpointercancel = e => {
+      if (y0 == null) return;
+      const dy = e.clientY - y0;
+      y0 = null;
+      sh.style.transition = "";
+      dy > 110 ? closeSheet() : (sh.style.transform = "");
+    };
+
+    // Derbi siyahısı
+    $("#list").innerHTML = FIX.map((f, i) => `
+      <button class="row" data-i="${i}">
+        <span>
+          <small>${f[1]} · ${f[0]}</small>
+          <b>${TEAMS[f[2]][0]}  ${TEAMS[f[3]][0]}</b>
+          <small>${f[4] || "Tarix təsdiqlənməyib"}</small>
+        </span>
+        <span class="chev" aria-hidden="true"></span>
+      </button>`).join("");
+
+    $("#list").onclick = e => {
+      const b = e.target.closest(".row");
+      if (!b) return;
+      const f = FIX[b.dataset.i], h = TEAMS[f[2]], a = TEAMS[f[3]];
+      openSheet(`
+        <h2 id="st">${h[0]} – ${a[0]}</h2>
+        <p class="mut sm">${f[0]} · ${f[1]}</p>
+        <div class="two">${card(h)}${card(a)}</div>
+        <div id="dp"></div>`, b);
+      panel($("#dp"), () => [h[0], a[0], lam(h[4], a[5], 1, 1), lam(a[4], h[5], 0, 1)]);
+    };
+
+    // Xüsusi simulyator
+    const sl = (id, l, v) => `
+      <label class="sld" for="${id}">
+        <span>${l}</span>
+        <output id="${id}o">${v.toFixed(1)}</output>
+      </label>
+      <input id="${id}" type="range" min=".2" max="4" step=".1" value="${v}">`;
+
+    $("#cus").innerHTML = `
+      <h2>Xüsusi simulyator</h2>
+      <p class="mut sm">Komanda adlarını yazın, gücü sürüşdürərək təyin edin.</p>
+      <div class="card">
+        <input class="nm" id="hn" aria-label="Ev sahibi komandanın adı" value="Ev komandası">
+        ${sl("hf", "Hücum · orta vurulan qol", 1.8)}
+        ${sl("hg", "Müdafiə · orta buraxılan qol", 1)}
+      </div>
+      <div class="card">
+        <input class="nm" id="an" aria-label="Qonaq komandanın adı" value="Qonaq komandası">
+        ${sl("af", "Hücum · orta vurulan qol", 1.4)}
+        ${sl("ag", "Müdafiə · orta buraxılan qol", 1.2)}
+      </div>
+      <div class="grp">
+        <label class="row" for="ha">
+          <span>Ev sahibi üstünlüyü</span>
+          <input class="sw" id="ha" type="checkbox" role="switch" checked>
+        </label>
+      </div>
+      <div id="cp"></div>`;
+
+    addEventListener("input", e => {
+      const o = document.getElementById(e.target.id + "o");
+      if (o && e.target.type === "range") {
+        o.textContent = (+e.target.value).toFixed(1);
+        hap(4);
+      }
+    });
+
+    panel($("#cp"), () => {
+      const v = id => +$(id).value, adv = $("#ha").checked;
+      return [
+        $("#hn").value || "Ev komandası",
+        $("#an").value || "Qonaq komandası",
+        lam(v("#hf"), v("#ag"), 1, adv),
+        lam(v("#af"), v("#hg"), 0, adv)
+      ];
+    });
+
+    // Tablar + jest (sola/sağa sürüşdürmə)
+    function setTab(t, focus) {
+      ["cal", "cus"].forEach(k => {
+        const on = k === t;
+        $("#t-" + k).setAttribute("aria-selected", on);
+        $("#t-" + k).tabIndex = on ? 0 : -1;
+        const s = $("#" + k);
+        if (s.hidden === on) {
+          s.hidden = !on;
+          if (on) {
+            s.classList.remove("pn");
+            void s.offsetWidth;
+            s.classList.add("pn");
+          }
+        }
+      });
+      hap(6);
+      if (focus) $("#t-" + t).focus();
+    }
+
+    $("#t-cal").onclick = () => setTab("cal");
+    $("#t-cus").onclick = () => setTab("cus");
+
+    $(".tabs").onkeydown = e => {
+      if (e.key === "ArrowRight") setTab("cus", 1);
+      if (e.key === "ArrowLeft") setTab("cal", 1);
+    };
+
+    let tx, ty;
+    const mn = $("main");
+    mn.addEventListener("touchstart", e => {
+      tx = e.touches[0].clientX;
+      ty = e.touches[0].clientY;
+    }, { passive: true });
+
+    mn.addEventListener("touchend", e => {
+      if (e.target.closest("input")) return;
+      const dx = e.changedTouches[0].clientX - tx;
+      const dy = e.changedTouches[0].clientY - ty;
+      if (Math.abs(dx) > 80 && Math.abs(dy) < 40) {
+        setTab(dx < 0 ? "cus" : "cal");
+      }
+    }, { passive: true });
+
+    setTab("cal");
+  </script>
+</body>
+</html>
